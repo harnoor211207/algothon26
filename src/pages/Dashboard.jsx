@@ -205,7 +205,7 @@ export function Dashboard({ store, onCreate, onOpen, onTemplates, onUseTemplate 
 function greetingText() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
+  if (hour < 16) return 'Good afternoon'
   return 'Good evening'
 }
 
