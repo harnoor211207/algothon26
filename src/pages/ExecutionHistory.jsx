@@ -50,11 +50,21 @@ export function ExecutionHistory({ executions }) {
             <article key={step.nodeId} className={`fp-run-step is-${step.status.toLowerCase()}`}>
               <div>
                 <strong>{step.nodeName}</strong>
-                <span>{step.log || 'No log'}</span>
+                <span>{step.error || step.log || 'No log'}</span>
               </div>
               <em>{step.status}</em>
             </article>
           ))}
+          {selected.logs?.length ? (
+            <div className="fp-run-logs">
+              <h4>Logs</h4>
+              {selected.logs.map((entry, index) => (
+                <p key={`${entry.timestamp}-${index}`} className={`fp-log fp-log-${entry.level}`}>
+                  {entry.message}
+                </p>
+              ))}
+            </div>
+          ) : null}
         </aside>
       ) : null}
     </div>

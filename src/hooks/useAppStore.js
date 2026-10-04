@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { TEMPLATES, buildTemplateGraph } from '../data/templates'
 import { clone, createId, downloadJson, nowIso } from '../utils/helpers'
-import { isValidImportedWorkflow, loadState, persist, resetState } from '../utils/storage'
+import { inspectImportedWorkflow, parseWorkflowJsonText, serializeWorkflow, workflowFromImport } from '../utils/importExport.js'
+import { loadState, persist, resetState } from '../utils/storage.js'
+import { createEmptyWorkflow, summarizeRunStatus } from '../utils/workflowModel.js'
 
 export function useAppStore() {
   const [state, setState] = useState(() => loadState())
@@ -28,24 +30,14 @@ export function useAppStore() {
   }, [])
 
   const createWorkflow = useCallback((partial = {}) => {
-    const workflow = {
-      id: createId('wf'),
-      name: partial.name || 'Untitled workflow',
-      description: partial.description || 'A new FlowPilot automation',
-      status: 'draft',
-      nodes: partial.nodes || [],
-      edges: partial.edges || [],
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      lastRunAt: null,
-      lastRunStatus: null,
-    }
+    const workflow = createEmptyWorkflow(partial)
     commit((prev) => ({ ...prev, workflows: [workflow, ...prev.workflows] }))
     return workflow
   }, [commit])
 
   const createFromTemplate = useCallback((templateId) => {
     const template = TEMPLATES.find((item) => item.id === templateId)
+    if (!template) return null
     const graph = buildTemplateGraph(template.kind)
     return createWorkflow({
       name: template.name,
@@ -78,7 +70,7 @@ export function useAppStore() {
           ? {
               ...workflow,
               lastRunAt: execution.startedAt,
-              lastRunStatus: execution.status === 'SUCCESS' ? 'success' : 'failed',
+              lastRunStatus: summarizeRunStatus(execution.status),
               updatedAt: nowIso(),
             }
           : workflow
@@ -99,40 +91,28 @@ export function useAppStore() {
   }, [commit])
 
   const exportWorkflow = useCallback((workflow) => {
-    downloadJson(`${workflow.name.replace(/\s+/g, '-').toLowerCase()}.flowpilot.json`, {
-      version: 1,
-      exportedAt: nowIso(),
-      workflow: {
-        name: workflow.name,
-        description: workflow.description,
-        status: workflow.status,
-        nodes: workflow.nodes,
-        edges: workflow.edges,
-      },
-    })
+    downloadJson(`${workflow.name.replace(/\s+/g, '-').toLowerCase()}.flowpilot.json`, serializeWorkflow(workflow))
     pushToast('success', 'Workflow exported')
   }, [pushToast])
 
   const importWorkflow = useCallback(async (file) => {
     const text = await file.text()
-    let parsed
-    try {
-      parsed = JSON.parse(text)
-    } catch {
-      pushToast('error', 'Could not parse JSON file.')
+    const parsed = parseWorkflowJsonText(text)
+    if (!parsed.ok) {
+      pushToast('error', parsed.error)
       return null
     }
-    const result = isValidImportedWorkflow(parsed)
+    const result = inspectImportedWorkflow(parsed.value)
     if (!result.ok) {
       pushToast('error', result.error)
       return null
     }
-    const created = createWorkflow({
-      name: result.workflow.name,
-      description: result.workflow.description || 'Imported workflow',
-      nodes: clone(result.workflow.nodes),
-      edges: clone(result.workflow.edges),
-    })
+    const created = createWorkflow(
+      workflowFromImport(result.workflow, {
+        nodes: clone(result.workflow.nodes),
+        edges: clone(result.workflow.edges),
+      })
+    )
     pushToast('success', 'Workflow imported')
     return created
   }, [createWorkflow, pushToast])

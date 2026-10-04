@@ -1,6 +1,8 @@
 import { buildDemoWorkflow } from '../data/templates'
+import { isExecutionShape, isWorkflowShape } from './workflowModel.js'
 
 const STORAGE_KEY = 'flowpilot:v1'
+const LEGACY_KEY = 'flowpilot:v1'
 
 export function emptyState() {
   return {
@@ -11,31 +13,22 @@ export function emptyState() {
   }
 }
 
-export function loadState() {
+function safeParse(raw) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      const seeded = seedState(emptyState())
-      persist(seeded)
-      return seeded
-    }
-    const parsed = JSON.parse(raw)
-    if (!parsed || !Array.isArray(parsed.workflows) || !Array.isArray(parsed.executions)) {
-      const seeded = seedState(emptyState())
-      persist(seeded)
-      return seeded
-    }
-    return {
-      workflows: parsed.workflows,
-      executions: parsed.executions,
-      settings: parsed.settings || { displayName: 'Automation Builder' },
-      seeded: Boolean(parsed.seeded),
-    }
+    return { ok: true, value: JSON.parse(raw) }
   } catch {
-    const seeded = seedState(emptyState())
-    persist(seeded)
-    return seeded
+    return { ok: false, error: 'Malformed localStorage JSON' }
   }
+}
+
+function recoverWorkflows(value) {
+  if (!Array.isArray(value)) return null
+  return value.filter(isWorkflowShape)
+}
+
+function recoverExecutions(value) {
+  if (!Array.isArray(value)) return []
+  return value.filter(isExecutionShape)
 }
 
 function seedState(state) {
@@ -48,9 +41,53 @@ function seedState(state) {
 
 export function persist(state) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    const payload = {
+      workflows: Array.isArray(state.workflows) ? state.workflows : [],
+      executions: Array.isArray(state.executions) ? state.executions : [],
+      settings: state.settings || { displayName: 'Automation Builder' },
+      seeded: Boolean(state.seeded),
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {
     // Storage can fail in private mode; the in-memory state still works for the session.
+  }
+}
+
+export function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY)
+    if (!raw) {
+      const seeded = seedState(emptyState())
+      persist(seeded)
+      return seeded
+    }
+
+    const parsed = safeParse(raw)
+    if (!parsed.ok) {
+      const seeded = seedState(emptyState())
+      persist(seeded)
+      return seeded
+    }
+
+    const workflows = recoverWorkflows(parsed.value?.workflows)
+    if (!workflows) {
+      const seeded = seedState(emptyState())
+      persist(seeded)
+      return seeded
+    }
+
+    return {
+      workflows,
+      executions: recoverExecutions(parsed.value?.executions),
+      settings: parsed.value?.settings && typeof parsed.value.settings === 'object'
+        ? { displayName: 'Automation Builder', ...parsed.value.settings }
+        : { displayName: 'Automation Builder' },
+      seeded: Boolean(parsed.value?.seeded),
+    }
+  } catch {
+    const seeded = seedState(emptyState())
+    persist(seeded)
+    return seeded
   }
 }
 
@@ -60,18 +97,22 @@ export function resetState() {
   return next
 }
 
-export function isValidImportedWorkflow(payload) {
-  if (!payload || typeof payload !== 'object') return { ok: false, error: 'File is not a valid workflow JSON object.' }
-  const workflow = payload.workflow || payload
-  if (!workflow.name) return { ok: false, error: 'Imported workflow is missing a name.' }
-  if (!Array.isArray(workflow.nodes) || !Array.isArray(workflow.edges)) {
-    return { ok: false, error: 'Imported workflow must include nodes and edges arrays.' }
-  }
-  const nodesOk = workflow.nodes.every(
-    (node) => node && node.id && node.position && node.data && node.data.typeKey && node.data.category
-  )
-  if (!nodesOk) return { ok: false, error: 'One or more imported nodes are missing required fields.' }
-  const edgesOk = workflow.edges.every((edge) => edge && edge.source && edge.target)
-  if (!edgesOk) return { ok: false, error: 'One or more imported edges are invalid.' }
-  return { ok: true, workflow }
+export function loadWorkflows() {
+  return loadState().workflows
 }
+
+export function loadExecutions() {
+  return loadState().executions
+}
+
+export function saveWorkflows(workflows) {
+  const state = loadState()
+  persist({ ...state, workflows })
+}
+
+export function saveExecutions(executions) {
+  const state = loadState()
+  persist({ ...state, executions })
+}
+
+export { inspectImportedWorkflow as isValidImportedWorkflow } from './importExport.js'

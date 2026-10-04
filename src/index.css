@@ -292,6 +292,11 @@ textarea { resize: vertical; }
 .fp-run-step.is-waiting em, .fp-run-step.is-skipped em { color: var(--muted); }
 .fp-errors { padding-left: 18px; }
 .fp-run-meta { color: var(--muted); font-size: 12px; }
+.fp-run-logs { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.fp-run-logs h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.fp-log { margin: 0 0 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+.fp-log-error { color: var(--danger); }
+.fp-log-warn { color: var(--condition); }
 
 .fp-table article {
   display: grid;

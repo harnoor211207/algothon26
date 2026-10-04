@@ -27,7 +27,7 @@ export function ExecutionPanel({ execution, errors }) {
         <article key={step.nodeId} className={`fp-run-step is-${step.status.toLowerCase()}`}>
           <div>
             <strong>{step.nodeName}</strong>
-            <span>{step.log || 'Waiting for previous steps'}</span>
+            <span>{step.error || step.log || 'Waiting for previous steps'}</span>
           </div>
           <em>
             {step.status}
@@ -36,7 +36,20 @@ export function ExecutionPanel({ execution, errors }) {
         </article>
       ))}
       {execution?.startedAt ? (
-        <p className="fp-run-meta">Started {formatDate(execution.startedAt)}</p>
+        <p className="fp-run-meta">
+          Started {formatDate(execution.startedAt)}
+          {execution.finishedAt ? ` · ${formatDuration(execution.durationMs)}` : ''}
+        </p>
+      ) : null}
+      {execution?.logs?.length ? (
+        <div className="fp-run-logs">
+          <h4>Logs</h4>
+          {execution.logs.map((entry, index) => (
+            <p key={`${entry.timestamp}-${index}`} className={`fp-log fp-log-${entry.level}`}>
+              {entry.message}
+            </p>
+          ))}
+        </div>
       ) : null}
     </div>
   )

@@ -28,7 +28,50 @@ function edge(source, target, sourceHandle) {
   }
 }
 
+export function buildEngineDemoGraph() {
+  const webhook = nodeFromCatalog('webhook', { x: 290, y: 16 }, {
+    endpoint: '/hooks/new-lead',
+  })
+  const http = nodeFromCatalog('http', { x: 286, y: 188 }, {
+    method: 'POST',
+    url: 'https://api.example.com/leads',
+    body: '{"email":"{{lead.email}}","score":{{lead.score}}}',
+  })
+  const condition = nodeFromCatalog('condition', { x: 272, y: 360 }, {
+    field: 'lead.score',
+    operator: 'gt',
+    value: '70',
+  })
+  const slack = nodeFromCatalog('slack', { x: 72, y: 548 }, {
+    channel: '#sales-alerts',
+    message: 'Hot lead: {{lead.name}} from {{lead.company}} scored {{lead.score}}.',
+  })
+  const notification = nodeFromCatalog('notification', { x: 468, y: 548 }, {
+    title: 'Lead below threshold',
+    body: '{{lead.name}} scored {{lead.score}} — keep in nurture.',
+  })
+  const email = nodeFromCatalog('email', { x: 286, y: 736 }, {
+    recipient: '{{lead.email}}',
+    subject: 'Follow-up: {{lead.name}}',
+    message: 'We processed your inbound request and will follow up shortly.',
+  })
+
+  return {
+    nodes: [webhook, http, condition, slack, notification, email],
+    edges: [
+      edge(webhook.id, http.id),
+      edge(http.id, condition.id),
+      edge(condition.id, slack.id, 'true'),
+      edge(condition.id, notification.id, 'false'),
+      edge(slack.id, email.id),
+      edge(notification.id, email.id),
+    ],
+  }
+}
+
 export function buildTemplateGraph(kind) {
+  if (kind === 'engine-demo') return buildEngineDemoGraph()
+
   if (kind === 'lead') {
     const webhook = nodeFromCatalog('webhook', { x: 280, y: 24 })
     const condition = nodeFromCatalog('condition', { x: 262, y: 196 }, {
@@ -126,6 +169,14 @@ export function buildTemplateGraph(kind) {
 
 export const TEMPLATES = [
   {
+    id: 'tpl-engine-demo',
+    kind: 'engine-demo',
+    name: 'Inbound Lead Router',
+    description: 'Webhook → HTTP → condition, then Slack or notification, then email.',
+    category: 'Demo',
+    nodeCount: 6,
+  },
+  {
     id: 'tpl-lead',
     kind: 'lead',
     name: 'Lead Notification',
@@ -160,40 +211,14 @@ export const TEMPLATES = [
 ]
 
 export function buildDemoWorkflow() {
-  const webhook = nodeFromCatalog('webhook', { x: 290, y: 16 }, {
-    endpoint: '/hooks/new-lead',
-  })
-  const condition = nodeFromCatalog('condition', { x: 272, y: 196 }, {
-    field: 'lead.score',
-    operator: 'gt',
-    value: '70',
-  })
-  const transform = nodeFromCatalog('format', { x: 278, y: 384 }, {
-    inputField: 'lead.name',
-    transformType: 'titlecase',
-    outputField: 'lead.displayName',
-  })
-  const slack = nodeFromCatalog('slack', { x: 286, y: 564 }, {
-    channel: '#sales-alerts',
-    message: 'Hot lead: {{lead.displayName}} from {{lead.company}} scored {{lead.score}}.',
-  })
-  const notification = nodeFromCatalog('notification', { x: 260, y: 744 }, {
-    title: 'Notify sales',
-    body: 'Call {{lead.displayName}} at {{lead.email}} today.',
-  })
-
+  const graph = buildEngineDemoGraph()
   return {
     id: createId('wf'),
     name: 'New Lead → Notify Sales',
-    description: 'Qualify high-intent inbound leads, alert Slack, and notify the sales desk.',
+    description: 'Webhook trigger, simulated HTTP, score condition, Slack or notification, then email.',
     status: 'active',
-    nodes: [webhook, condition, transform, slack, notification],
-    edges: [
-      edge(webhook.id, condition.id),
-      edge(condition.id, transform.id, 'true'),
-      edge(transform.id, slack.id),
-      edge(slack.id, notification.id),
-    ],
+    nodes: graph.nodes,
+    edges: graph.edges,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     lastRunAt: null,
