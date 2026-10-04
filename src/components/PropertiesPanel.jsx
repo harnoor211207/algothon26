@@ -1,4 +1,5 @@
-import { Copy, Trash2 } from 'lucide-react'
+import { Copy, MousePointerClick, Trash2 } from 'lucide-react'
+import { getCatalogItem } from '../data/nodeCatalog'
 import { OPERATORS } from '../utils/validation'
 
 function Field({ label, children }) {
@@ -14,8 +15,11 @@ export function PropertiesPanel({ node, onChange, onDuplicate, onDelete }) {
   if (!node) {
     return (
       <div className="fp-props">
-        <h3>Properties</h3>
-        <p className="fp-muted">Select a node to configure it. Connections, zoom, and pan work on the canvas.</p>
+        <h3 className="fp-panel-title">Properties</h3>
+        <div className="fp-panel-empty">
+          <MousePointerClick size={18} />
+          Select a node to configure it. Connections, zoom, and pan work on the canvas.
+        </div>
       </div>
     )
   }
@@ -23,19 +27,26 @@ export function PropertiesPanel({ node, onChange, onDuplicate, onDelete }) {
   const config = node.data.config || {}
   const update = (key, value) => onChange({ ...config, [key]: value })
   const typeKey = node.data.typeKey
+  const item = getCatalogItem(typeKey)
+  const Icon = item?.icon
 
   return (
     <div className="fp-props">
       <div className="fp-props-head">
-        <div>
-          <p className="fp-kicker">{node.data.category}</p>
-          <h3>{node.data.label}</h3>
+        <div className={`fp-props-title tone-${node.data.category}`}>
+          <span className="fp-palette-icon">{Icon ? <Icon size={14} /> : null}</span>
+          <div>
+            <p className="fp-kicker" style={{ color: 'var(--tone)', marginBottom: 2 }}>
+              {node.data.category}
+            </p>
+            <h3>{node.data.label}</h3>
+          </div>
         </div>
         <div className="fp-props-actions">
-          <button type="button" className="fp-icon-btn" title="Duplicate node" onClick={onDuplicate}>
+          <button type="button" className="fp-icon-btn" title="Duplicate node" aria-label="Duplicate node" onClick={onDuplicate}>
             <Copy size={15} />
           </button>
-          <button type="button" className="fp-icon-btn" title="Delete node" onClick={onDelete}>
+          <button type="button" className="fp-icon-btn danger" title="Delete node" aria-label="Delete node" onClick={onDelete}>
             <Trash2 size={15} />
           </button>
         </div>

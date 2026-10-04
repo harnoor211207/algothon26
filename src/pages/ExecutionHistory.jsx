@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { EmptyState } from '../components/Feedback'
+import { LogList, StepTimeline } from '../components/ExecutionPanel'
 import { formatDate, formatDuration } from '../utils/helpers'
 
 export function ExecutionHistory({ executions }) {
@@ -9,7 +10,12 @@ export function ExecutionHistory({ executions }) {
   if (!executions.length) {
     return (
       <div className="fp-page">
-        <h1>Execution history</h1>
+        <section className="fp-hero">
+          <div>
+            <p className="fp-kicker">Runs</p>
+            <h1>Execution history</h1>
+          </div>
+        </section>
         <EmptyState
           title="No runs yet"
           message="Open a workflow and click Run Workflow to capture a live execution log."
@@ -19,10 +25,16 @@ export function ExecutionHistory({ executions }) {
   }
 
   return (
-    <div className="fp-page split">
-      <section>
-        <h1>Execution history</h1>
-        <div className="fp-table">
+    <div className="fp-page">
+      <section className="fp-hero">
+        <div>
+          <p className="fp-kicker">Runs</p>
+          <h1>Execution history</h1>
+          <p>Inspect every run, step by step, with full logs.</p>
+        </div>
+      </section>
+      <div className="fp-split">
+        <section className="fp-table">
           {executions.map((item) => (
             <article key={item.id} className={item.id === selectedId ? 'is-active' : ''}>
               <div>
@@ -31,42 +43,27 @@ export function ExecutionHistory({ executions }) {
                   {formatDate(item.startedAt)} · {item.stepCount} steps · {formatDuration(item.durationMs)}
                 </p>
               </div>
-              <span className={`fp-pill ${item.status.toLowerCase()}`}>{item.status}</span>
+              <span className={`fp-pill ${item.status.toLowerCase()}`}>{item.status.toLowerCase()}</span>
               <button type="button" className="fp-btn ghost" onClick={() => setSelectedId(item.id)}>
                 View Details
               </button>
             </article>
           ))}
-        </div>
-      </section>
-      {selected ? (
-        <aside className="fp-detail">
-          <p className="fp-kicker">{selected.status}</p>
-          <h2>{selected.workflowName}</h2>
-          <p>
-            {formatDate(selected.startedAt)} · {formatDuration(selected.durationMs)}
-          </p>
-          {selected.steps?.map((step) => (
-            <article key={step.nodeId} className={`fp-run-step is-${step.status.toLowerCase()}`}>
-              <div>
-                <strong>{step.nodeName}</strong>
-                <span>{step.error || step.log || 'No log'}</span>
-              </div>
-              <em>{step.status}</em>
-            </article>
-          ))}
-          {selected.logs?.length ? (
-            <div className="fp-run-logs">
-              <h4>Logs</h4>
-              {selected.logs.map((entry, index) => (
-                <p key={`${entry.timestamp}-${index}`} className={`fp-log fp-log-${entry.level}`}>
-                  {entry.message}
-                </p>
-              ))}
+        </section>
+        {selected ? (
+          <aside className="fp-detail">
+            <div className="fp-detail-head">
+              <span className={`fp-pill ${selected.status.toLowerCase()}`}>{selected.status.toLowerCase()}</span>
             </div>
-          ) : null}
-        </aside>
-      ) : null}
+            <h2>{selected.workflowName}</h2>
+            <p>
+              {formatDate(selected.startedAt)} · {formatDuration(selected.durationMs)}
+            </p>
+            <StepTimeline steps={selected.steps} fallback="No log" />
+            <LogList logs={selected.logs} />
+          </aside>
+        ) : null}
+      </div>
     </div>
   )
 }

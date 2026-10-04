@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
@@ -10,7 +11,7 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react'
-import { ArrowLeft, Download, Play, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Download, FlaskConical, Maximize2, Play, Save, Upload, Workflow } from 'lucide-react'
 import { NodePalette } from '../components/NodePalette'
 import { PropertiesPanel } from '../components/PropertiesPanel'
 import { ExecutionPanel } from '../components/ExecutionPanel'
@@ -20,6 +21,13 @@ import { runWorkflow } from '../utils/executionEngine'
 import { clone, createId } from '../utils/helpers'
 import { validateWorkflow } from '../utils/validation'
 import '@xyflow/react/dist/style.css'
+
+const MINIMAP_COLORS = {
+  trigger: '#5b4cf0',
+  action: '#0b84c9',
+  condition: '#d97a06',
+  transform: '#0f9b84',
+}
 
 function BuilderCanvas({ workflow, store, onBack, onOpen }) {
   const { screenToFlowPosition, fitView } = useReactFlow()
@@ -228,13 +236,37 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
     []
   )
 
+  const displayEdges = useMemo(
+    () =>
+      edges.map((edge) => {
+        const classes = []
+        if (edge.sourceHandle === 'true') classes.push('is-true')
+        if (edge.sourceHandle === 'false') classes.push('is-false')
+        if (selectedId && (edge.source === selectedId || edge.target === selectedId)) classes.push('is-hot')
+        return classes.length ? { ...edge, className: classes.join(' ') } : edge
+      }),
+    [edges, selectedId]
+  )
+
+  const typeCounts = useMemo(() => {
+    const counts = { trigger: 0, transform: 0, action: 0, condition: 0 }
+    nodes.forEach((node) => {
+      if (node.type in counts) counts[node.type] += 1
+    })
+    return counts
+  }, [nodes])
+
   return (
     <div className="fp-builder">
       <header className="fp-builder-bar">
-        <button type="button" className="fp-btn ghost" onClick={onBack}>
+        <button type="button" className="fp-btn ghost" onClick={onBack} data-tip="Back to dashboard">
           <ArrowLeft size={16} />
           Back
         </button>
+        <span className="fp-bar-divider" aria-hidden="true" />
+        <span className="fp-bar-logo" aria-hidden="true">
+          <Workflow size={14} strokeWidth={2.25} />
+        </span>
         <input
           className="fp-name-input"
           value={name}
@@ -249,27 +281,36 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
           {status}
         </button>
         <div className="fp-builder-actions">
-          <button type="button" className="fp-btn ghost" onClick={() => importRef.current?.click()} title="Import workflow">
-            <Upload size={15} />
-            Import
+          <div className="fp-btn-group">
+            <button type="button" className="fp-btn ghost" onClick={() => importRef.current?.click()} data-tip="Import JSON">
+              <Upload size={14} />
+              Import
+            </button>
+            <button
+              type="button"
+              className="fp-btn ghost"
+              onClick={() => store.exportWorkflow({ ...workflow, name, status, nodes, edges })}
+              data-tip="Download as JSON"
+            >
+              <Download size={14} />
+              Export
+            </button>
+          </div>
+          <button type="button" className="fp-btn" onClick={save} disabled={saving} data-tip="Save · Ctrl/⌘ S">
+            <Save size={14} />
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <span className="fp-bar-divider" aria-hidden="true" />
+          <button type="button" className="fp-btn" onClick={execute} disabled={running} data-tip="Dry-run with sample payload">
+            <FlaskConical size={14} />
+            Test Run
           </button>
           <button
             type="button"
-            className="fp-btn ghost"
-            onClick={() => store.exportWorkflow({ ...workflow, name, status, nodes, edges })}
-            title="Export workflow"
+            className={`fp-btn accent ${running ? 'is-running' : ''}`}
+            onClick={execute}
+            disabled={running}
           >
-            <Download size={15} />
-            Export
-          </button>
-          <button type="button" className="fp-btn ghost" onClick={save} disabled={saving}>
-            <Save size={15} />
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="fp-btn ghost" onClick={execute} disabled={running}>
-            Test Run
-          </button>
-          <button type="button" className="fp-btn primary" onClick={execute} disabled={running}>
             <Play size={15} />
             {running ? 'Running…' : 'Run Workflow'}
           </button>
@@ -297,7 +338,7 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
         <div className="fp-canvas" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -309,13 +350,35 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
               if (selectedNodes[0]) setSelectedId(selectedNodes[0].id)
             }}
             fitView
+            colorMode="light"
             deleteKeyCode={['Delete', 'Backspace']}
           >
-            <Background gap={18} color="#eadfd6" />
-            <MiniMap pannable zoomable />
+            <Background id="fp-grid-minor" variant={BackgroundVariant.Dots} gap={22} size={1.3} color="#cfc9bc" />
+            <Background id="fp-grid-major" variant={BackgroundVariant.Lines} gap={110} lineWidth={0.6} color="#e7e2d8" />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(node) => MINIMAP_COLORS[node.type] || '#a8a39a'}
+              nodeStrokeWidth={0}
+              nodeBorderRadius={6}
+              maskColor="rgba(245, 243, 238, 0.72)"
+            />
             <Controls showInteractive={false} />
           </ReactFlow>
-          <button type="button" className="fp-fit" onClick={() => fitView({ padding: 0.2 })}>
+          <div className="fp-canvas-legend" aria-label="Canvas summary">
+            {Object.entries(typeCounts).map(([type, count]) => (
+              <span key={type} className={`tone-${type}`}>
+                <i aria-hidden="true" />
+                {type}
+                <b>{count}</b>
+              </span>
+            ))}
+            <span className="fp-canvas-legend-edges">
+              {edges.length} links
+            </span>
+          </div>
+          <button type="button" className="fp-fit" onClick={() => fitView({ padding: 0.2, duration: 400 })}>
+            <Maximize2 size={13} />
             Fit View
           </button>
         </div>
@@ -326,7 +389,7 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
             onDuplicate={duplicateSelected}
             onDelete={deleteSelected}
           />
-          <ExecutionPanel execution={execution} errors={errors} />
+          <ExecutionPanel execution={execution} errors={errors} nodes={nodes} />
         </aside>
       </div>
     </div>
