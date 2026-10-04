@@ -153,7 +153,7 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
 
   const save = useCallback(() => {
     setSaving(true)
-    persistGraph({ name, status })
+    persistGraph({ name, status: 'active' })
     store.pushToast('success', 'Workflow saved')
     setTimeout(() => setSaving(false), 400)
   }, [name, persistGraph, status, store])
