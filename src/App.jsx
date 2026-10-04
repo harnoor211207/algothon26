@@ -3,6 +3,7 @@ import { AppHeader, TopBar } from './components/AppHeader'
 import { SettingsModal } from './components/SettingsModal'
 import { ToastStack } from './components/Feedback'
 import { useAppStore } from './hooks/useAppStore'
+import { TEMPLATES } from './data/templates'
 import { Dashboard } from './pages/Dashboard'
 import { ExecutionHistory } from './pages/ExecutionHistory'
 import { TemplatesPage } from './pages/Templates'
@@ -52,6 +53,11 @@ export default function App() {
             onNavigate={navigate}
             displayName={store.settings.displayName}
             onOpenSettings={() => setSettingsOpen(true)}
+            counts={{
+              workflows: store.workflows.length,
+              templates: TEMPLATES.length,
+              executions: store.executions.length,
+            }}
           />
           <main className="fp-main">
             <TopBar view={view} />

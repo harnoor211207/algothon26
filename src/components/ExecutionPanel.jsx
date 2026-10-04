@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, CircleDashed, Clock3, Loader2, Terminal, XCircle, Zap } from 'lucide-react'
+import { getCatalogItem } from '../data/nodeCatalog'
 import { formatDate, formatDuration } from '../utils/helpers'
 
 const STEP_ICON = {
@@ -9,26 +10,43 @@ const STEP_ICON = {
   waiting: Clock3,
 }
 
-export function StepTimeline({ steps, fallback, showDuration = false }) {
+const DONE = new Set(['success', 'failed', 'skipped'])
+
+function formatClock(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+export function StepTimeline({ steps, fallback, showDuration = false, nodes }) {
   if (!steps?.length) return null
+  const nodeById = nodes ? Object.fromEntries(nodes.map((node) => [node.id, node])) : {}
   return (
     <div className="fp-timeline">
       {steps.map((step) => {
         const status = step.status.toLowerCase()
-        const Icon = STEP_ICON[status] || Clock3
+        const StatusIcon = STEP_ICON[status] || Clock3
+        const node = nodeById[step.nodeId]
+        const TypeIcon = node ? getCatalogItem(node.data?.typeKey)?.icon : null
         return (
-          <article key={step.nodeId} className={`fp-run-step is-${status}`}>
+          <article key={step.nodeId} className={`fp-run-step is-${status} ${node ? `tone-${node.type}` : ''}`}>
             <span className="fp-step-dot" aria-hidden="true">
-              <Icon size={12} strokeWidth={2.5} />
+              {TypeIcon ? <TypeIcon size={13} strokeWidth={2.25} /> : <StatusIcon size={12} strokeWidth={2.5} />}
             </span>
-            <div>
+            <div className="fp-step-main">
               <strong>{step.nodeName}</strong>
               <span className="fp-step-log">{step.error || step.log || fallback}</span>
             </div>
-            <em>
-              {status}
-              {showDuration && step.durationMs != null ? ` · ${formatDuration(step.durationMs)}` : ''}
-            </em>
+            <div className="fp-step-side">
+              <em className={`fp-step-status is-${status}`}>
+                <StatusIcon size={11} strokeWidth={2.5} />
+                {status}
+              </em>
+              {showDuration && step.durationMs != null ? (
+                <span className="fp-step-time">{formatDuration(step.durationMs)}</span>
+              ) : null}
+            </div>
           </article>
         )
       })}
@@ -43,11 +61,14 @@ export function LogList({ logs }) {
       <h4>
         <Terminal size={12} />
         Logs
+        <span>{logs.length}</span>
       </h4>
       <div className="fp-log-list">
         {logs.map((entry, index) => (
           <p key={`${entry.timestamp}-${index}`} className={`fp-log fp-log-${entry.level}`}>
-            {entry.message}
+            <time>{formatClock(entry.timestamp)}</time>
+            <b>{entry.level}</b>
+            <span>{entry.message}</span>
           </p>
         ))}
       </div>
@@ -55,50 +76,72 @@ export function LogList({ logs }) {
   )
 }
 
-export function ExecutionPanel({ execution, errors }) {
-  if (!execution && !errors?.length) {
-    return (
-      <div className="fp-run-panel">
-        <h3>
-          <Zap size={14} />
-          Live execution
-        </h3>
-        <div className="fp-panel-empty">
-          <Zap size={18} />
-          {'Run the workflow to watch each node move from waiting → running → success.'}
-        </div>
-      </div>
-    )
-  }
+export function ExecutionPanel({ execution, errors, nodes }) {
+  const steps = execution?.steps || []
+  const done = steps.filter((step) => DONE.has(step.status.toLowerCase())).length
+  const progress = steps.length ? Math.round((done / steps.length) * 100) : 0
+  const runStatus = execution?.status?.toLowerCase()
 
   return (
-    <div className="fp-run-panel">
+    <section className={`fp-run-panel ${runStatus ? `is-${runStatus}` : ''}`} aria-label="Live execution">
       <div className="fp-run-head">
         <h3>
-          <Zap size={14} />
+          <span className="fp-live-dot" aria-hidden="true" />
           Live execution
         </h3>
-        {execution ? <span className={`fp-pill ${execution.status.toLowerCase()}`}>{execution.status.toLowerCase()}</span> : null}
+        {execution ? (
+          <span className={`fp-pill ${runStatus}`}>{runStatus}</span>
+        ) : (
+          <span className="fp-run-idle">idle</span>
+        )}
       </div>
-      {errors?.length ? (
-        <ul className="fp-errors">
-          {errors.map((error) => (
-            <li key={error}>
-              <AlertCircle size={13} />
-              <span>{error}</span>
-            </li>
-          ))}
-        </ul>
+
+      {execution ? (
+        <div className="fp-run-progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <div className="fp-run-progress-meta">
+            <span>
+              {done}/{steps.length} steps
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <div className="fp-run-progress-track">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        </div>
       ) : null}
-      <StepTimeline steps={execution?.steps} fallback="Waiting for previous steps" showDuration />
-      {execution?.startedAt ? (
-        <p className="fp-run-meta">
-          <Clock3 size={12} />
-          Started {formatDate(execution.startedAt)}
-          {execution.finishedAt ? ` · ${formatDuration(execution.durationMs)}` : ''}
-        </p>
-      ) : null}
-      <LogList logs={execution?.logs} />
-    </div>
+
+      <div className="fp-run-scroll">
+        {errors?.length ? (
+          <ul className="fp-errors">
+            {errors.map((error) => (
+              <li key={error}>
+                <AlertCircle size={13} />
+                <span>{error}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {!execution && !errors?.length ? (
+          <div className="fp-console-empty">
+            <Zap size={16} />
+            <p>
+              <strong>Ready to execute</strong>
+              <span>{'Run the workflow to stream each node: waiting → running → success.'}</span>
+            </p>
+          </div>
+        ) : null}
+
+        <StepTimeline steps={execution?.steps} fallback="Waiting for previous steps" showDuration nodes={nodes} />
+        {execution?.startedAt ? (
+          <p className="fp-run-meta">
+            <Clock3 size={12} />
+            Started {formatDate(execution.startedAt)}
+            {execution.finishedAt ? ` · ${formatDuration(execution.durationMs)}` : ''}
+          </p>
+        ) : null}
+        <LogList logs={execution?.logs} />
+      </div>
+    </section>
   )
 }
