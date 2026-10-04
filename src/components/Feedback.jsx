@@ -1,4 +1,4 @@
-import { CheckCircle2, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, X } from 'lucide-react'
 
 export function ToastStack({ toasts, onDismiss }) {
   if (!toasts.length) return null
@@ -7,6 +7,7 @@ export function ToastStack({ toasts, onDismiss }) {
       {toasts.map((toast) => (
         <div key={toast.id} className={`fp-toast fp-toast-${toast.tone}`}>
           {toast.tone === 'success' ? <CheckCircle2 size={16} /> : null}
+          {toast.tone === 'error' ? <AlertCircle size={16} /> : null}
           <span>{toast.message}</span>
           <button type="button" className="fp-icon-btn" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">
             <X size={14} />

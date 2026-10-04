@@ -8,7 +8,7 @@ export function NodePalette({ onAdd }) {
         <p>Click or drag a step onto the canvas.</p>
       </div>
       {catalogByCategory().map((group) => (
-        <section key={group.category}>
+        <section key={group.category} className={`fp-palette-group tone-${group.tone}`}>
           <h4>{group.label}</h4>
           {group.items.map((item) => {
             const Icon = item.icon
@@ -25,7 +25,7 @@ export function NodePalette({ onAdd }) {
                 onClick={() => onAdd(item.id)}
               >
                 <span className="fp-palette-icon">
-                  <Icon size={16} />
+                  <Icon size={14} />
                 </span>
                 <span>
                   <strong>{item.title}</strong>

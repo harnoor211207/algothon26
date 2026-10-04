@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
@@ -10,7 +11,7 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react'
-import { ArrowLeft, Download, Play, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Download, FlaskConical, Maximize2, Play, Save, Upload } from 'lucide-react'
 import { NodePalette } from '../components/NodePalette'
 import { PropertiesPanel } from '../components/PropertiesPanel'
 import { ExecutionPanel } from '../components/ExecutionPanel'
@@ -20,6 +21,13 @@ import { runWorkflow } from '../utils/executionEngine'
 import { clone, createId } from '../utils/helpers'
 import { validateWorkflow } from '../utils/validation'
 import '@xyflow/react/dist/style.css'
+
+const MINIMAP_COLORS = {
+  trigger: '#8b7cf6',
+  action: '#3b9eff',
+  condition: '#f5a524',
+  transform: '#2dd4bf',
+}
 
 function BuilderCanvas({ workflow, store, onBack, onOpen }) {
   const { screenToFlowPosition, fitView } = useReactFlow()
@@ -235,6 +243,7 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
           <ArrowLeft size={16} />
           Back
         </button>
+        <span className="fp-bar-divider" aria-hidden="true" />
         <input
           className="fp-name-input"
           value={name}
@@ -249,27 +258,31 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
           {status}
         </button>
         <div className="fp-builder-actions">
-          <button type="button" className="fp-btn ghost" onClick={() => importRef.current?.click()} title="Import workflow">
-            <Upload size={15} />
-            Import
-          </button>
-          <button
-            type="button"
-            className="fp-btn ghost"
-            onClick={() => store.exportWorkflow({ ...workflow, name, status, nodes, edges })}
-            title="Export workflow"
-          >
-            <Download size={15} />
-            Export
-          </button>
-          <button type="button" className="fp-btn ghost" onClick={save} disabled={saving}>
-            <Save size={15} />
+          <div className="fp-btn-group">
+            <button type="button" className="fp-btn ghost" onClick={() => importRef.current?.click()} title="Import workflow">
+              <Upload size={14} />
+              Import
+            </button>
+            <button
+              type="button"
+              className="fp-btn ghost"
+              onClick={() => store.exportWorkflow({ ...workflow, name, status, nodes, edges })}
+              title="Export workflow"
+            >
+              <Download size={14} />
+              Export
+            </button>
+          </div>
+          <button type="button" className="fp-btn" onClick={save} disabled={saving}>
+            <Save size={14} />
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <button type="button" className="fp-btn ghost" onClick={execute} disabled={running}>
+          <span className="fp-bar-divider" aria-hidden="true" />
+          <button type="button" className="fp-btn" onClick={execute} disabled={running}>
+            <FlaskConical size={14} />
             Test Run
           </button>
-          <button type="button" className="fp-btn primary" onClick={execute} disabled={running}>
+          <button type="button" className="fp-btn accent" onClick={execute} disabled={running}>
             <Play size={15} />
             {running ? 'Running…' : 'Run Workflow'}
           </button>
@@ -309,13 +322,22 @@ function BuilderCanvas({ workflow, store, onBack, onOpen }) {
               if (selectedNodes[0]) setSelectedId(selectedNodes[0].id)
             }}
             fitView
+            colorMode="dark"
             deleteKeyCode={['Delete', 'Backspace']}
           >
-            <Background gap={18} color="#eadfd6" />
-            <MiniMap pannable zoomable />
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} color="#2a2b30" />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(node) => MINIMAP_COLORS[node.type] || '#5c6068'}
+              nodeStrokeWidth={0}
+              nodeBorderRadius={4}
+              maskColor="rgba(8, 9, 10, 0.7)"
+            />
             <Controls showInteractive={false} />
           </ReactFlow>
           <button type="button" className="fp-fit" onClick={() => fitView({ padding: 0.2 })}>
+            <Maximize2 size={13} />
             Fit View
           </button>
         </div>

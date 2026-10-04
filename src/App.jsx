@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AppHeader } from './components/AppHeader'
+import { AppHeader, TopBar } from './components/AppHeader'
 import { SettingsModal } from './components/SettingsModal'
 import { ToastStack } from './components/Feedback'
 import { useAppStore } from './hooks/useAppStore'
@@ -46,14 +46,15 @@ export default function App() {
   return (
     <div className="fp-app">
       {view !== 'builder' ? (
-        <AppHeader
-          view={view}
-          onNavigate={navigate}
-          displayName={store.settings.displayName}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-      ) : null}
-
+        <div className="fp-shell">
+          <AppHeader
+            view={view}
+            onNavigate={navigate}
+            displayName={store.settings.displayName}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <main className="fp-main">
+            <TopBar view={view} />
       {view === 'dashboard' && (
         <Dashboard
           store={store}
@@ -76,6 +77,9 @@ export default function App() {
       )}
       {view === 'templates' && <TemplatesPage onUseTemplate={useTemplate} />}
       {view === 'executions' && <ExecutionHistory executions={store.executions} />}
+          </main>
+        </div>
+      ) : null}
       {view === 'builder' && activeWorkflow && (
         <WorkflowBuilder
           workflow={activeWorkflow}

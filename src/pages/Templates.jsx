@@ -1,3 +1,4 @@
+import { Layers } from 'lucide-react'
 import { TEMPLATES } from '../data/templates'
 
 export function TemplatesPage({ onUseTemplate }) {
@@ -13,18 +14,29 @@ export function TemplatesPage({ onUseTemplate }) {
       <div className="fp-card-grid">
         {TEMPLATES.map((template) => (
           <article key={template.id} className="fp-card">
-            <p className="fp-kicker">{template.category}</p>
-            <h3>{template.name}</h3>
-            <p>{template.description}</p>
-            <dl>
+            <div className="fp-card-title">
+              <span className="fp-card-icon">
+                <Layers size={16} />
+              </span>
               <div>
-                <dt>Nodes</dt>
-                <dd>{template.nodeCount}</dd>
+                <p className="fp-kicker" style={{ marginBottom: 2 }}>
+                  {template.category}
+                </p>
+                <h3>{template.name}</h3>
               </div>
-            </dl>
-            <button type="button" className="fp-btn primary" onClick={() => onUseTemplate(template.id)}>
-              Use Template
-            </button>
+            </div>
+            <p>{template.description}</p>
+            <div className="fp-card-foot">
+              <dl>
+                <div>
+                  <dt>Nodes</dt>
+                  <dd>{template.nodeCount}</dd>
+                </div>
+              </dl>
+              <button type="button" className="fp-btn primary" onClick={() => onUseTemplate(template.id)}>
+                Use Template
+              </button>
+            </div>
           </article>
         ))}
       </div>
