@@ -626,6 +626,11 @@ code { font-family: var(--font-mono); }
   gap: 20px;
   align-items: start;
 }
+.fp-dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 .fp-dash-side { display: flex; flex-direction: column; gap: 14px; padding-top: 34px; }
 
 .fp-panel {
